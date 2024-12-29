@@ -1,0 +1,2 @@
+[console_scripts]
+hsa_reimburse = hsa_reimburse.cli:main
