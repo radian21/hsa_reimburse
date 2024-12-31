@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 # Read the version from hsa_reimburse/__init__.py
 def get_version():
     version = {}
-    with open(os.path.join("hsa_reimburse", "__init__.py")) as f:
+    with open(os.path.join("src", "__init__.py")) as f:
         exec(f.read(), version)
     return version["__version__"]
 
