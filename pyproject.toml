@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hsa_reimburse_package_radian21"
+name = "hsa-reimburse"
 version = "0.1.0"
 authors = [
   { name="Andy Fritsch", email="radian21@gmail.com" },
@@ -19,6 +19,10 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = []
+
+[project.scripts]
+hsa = "hsa_reimburse_package_radian21.hsa_reimburse:main"
 
 [project.urls]
 Homepage = "https://github.com/radian21/hsa_reimburse"

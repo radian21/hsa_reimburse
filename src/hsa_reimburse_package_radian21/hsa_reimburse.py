@@ -8,13 +8,13 @@ from hashlib import sha256
 import re
 from datetime import datetime
 import csv
-from ..src import __version__
+from . import __version__
 
 # Global variables
 DB_FILE = "hsa_reimburse.db"
-BACKUP_DIR = os.path.expanduser("~/Documents/.hsa_reimburse/backups")
-EXPORT_DIR = os.path.expanduser("~/Documents/.hsa_reimburse/exports")
-RECEIPTS_DIR = os.path.expanduser("C:/Users/radia/Documents/HSA CLI App Test/HSA Reimbursable")
+BACKUP_DIR = os.path.expanduser("~/Documents/hsa-reimburse/backups")
+EXPORT_DIR = os.path.expanduser("~/Documents/hsa-reimburse/exports")
+RECEIPTS_DIR = os.path.expanduser("~/Documents/hsa-reimburse/receipts")
 
 def connect_db():
     """Connect to the SQLite database with explicit date/time handling."""
@@ -59,7 +59,9 @@ def initialize_database():
     conn.close()
 
 
-def scan_receipts(path):
+def scan_receipts(path=None):
+    path = path or RECEIPTS_DIR  # Use default path if none is provided
+
     """Scan the folder for new receipts and add them to the database."""
     if not os.path.exists(path):
         print(f"Directory not found: {path}")
@@ -393,10 +395,10 @@ def export_to_json(data):
 
 def main():
     parser = argparse.ArgumentParser(description="HSA Reimbursement CLI")
-    parser.add_argument("--version", action="version", version=f"hsa_reimburse {__version__}")
+    parser.add_argument("--version", action="version", version=f"hsa-reimburse {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    subparsers.add_parser("init", help="Scan a directory for receipts").add_argument("path")
+    subparsers.add_parser("init", help="Scan a directory for receipts").add_argument("--path", help="Path to the directory containing the receipts. Defaults to RECEIPTS_DIR.")
     subparsers.add_parser("request", help="Request reimbursement").add_argument("amount", type=float)
     subparsers.add_parser("reset", help="Reset reimbursements with backup")
     subparsers.add_parser("restore", help="Restore reimbursements from backup").add_argument("backup_file")
@@ -404,7 +406,7 @@ def main():
     report_parser = subparsers.add_parser("report", help="Generate a report of all reimbursements")
     report_parser.add_argument("--export", choices=["csv", "json"], help="Export the report to CSV or JSON")
     invalid_files_parser = subparsers.add_parser("check-invalid", help="Check for files with invalid naming convention")
-    invalid_files_parser.add_argument("--path", help="Path to the directory to check. Defaults to the receipts directory.")
+    invalid_files_parser.add_argument("--path", help="Path to the directory to check. Defaults to RECEIPTS_DIR.")
 
     args = parser.parse_args()
 

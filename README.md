@@ -3,6 +3,8 @@
 
 **HSA Reimbursement CLI** is a command-line tool designed to help users manage healthcare receipts of Health Savings Account. The app enables tracking reimbursements efficiently. It allows users to analyze receipts, request reimbursements, back up data, restore from backups, and generate reports, all through an intuitive command-line interface.
 
+>All transactions are stored in a local SQLite database.
+
 ---
 
 ## Features
@@ -40,18 +42,18 @@
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/hsa-reimburse-cli.git
-   cd hsa-reimburse-cli
+   git clone https://github.com/radian21/hsa_reimburse.git
+   cd hsa_reimburse
    ```
 
-2. Install the package:
+2. Install the package locally:
    ```bash
    pip install .
    ```
 
 3. Verify installation:
    ```bash
-   hsa_reimburse --version
+   hsa --version
    ```
 
 ---
@@ -74,26 +76,28 @@ Each of these parts are expected to be delimited by the `_` (underscore) charact
 
 ## Usage
 
-Run the `hsa_reimburse` command with a subcommand:
+Run the `hsa` command with a subcommand:
 
 ```bash
-hsa_reimburse <command> [options]
+hsa <command> [options]
 ```
 
 ### Example:
 - Scan receipts in a directory:
   ```bash
-  hsa_reimburse init ~/path/to/receipts
+  hsa init ~/path/to/receipts
   ```
+
+  >The default path to the receipts will be used if no path is provided. The default path is: `~/Documents/hsa-reimburse/receipts`
 
 - Request a reimbursement:
   ```bash
-  hsa_reimburse request 1000
+  hsa request 1000
   ```
 
 - Generate a summary:
   ```bash
-  hsa_reimburse summary
+  hsa summary
   ```
 
 ---
@@ -104,7 +108,7 @@ hsa_reimburse <command> [options]
 Scan a directory for receipts and add them to the database.
 
 ```bash
-hsa_reimburse init <path>
+hsa init <path>
 ```
 
 - **Options**:
@@ -116,7 +120,7 @@ hsa_reimburse init <path>
 Request a reimbursement for a specific amount. The tool will select optimal receipts that sum up to or just below the requested amount.
 
 ```bash
-hsa_reimburse request <amount>
+hsa request <amount>
 ```
 
 - **Options**:
@@ -128,10 +132,11 @@ hsa_reimburse request <amount>
 Reset all reimbursement transactions after creating a backup.
 
 ```bash
-hsa_reimburse reset
+hsa reset
 ```
 
 - Prompts for confirmation before proceeding.
+- Saves a JSON backup of all reimbursement transactions before resetting the database. This backup is stored in `~/Documents/hsa-reimburse/backups` and can be used to restore the database as desired. 
 
 ---
 
@@ -139,11 +144,13 @@ hsa_reimburse reset
 Restore reimbursement data from a backup file.
 
 ```bash
-hsa_reimburse restore <backup_file>
+hsa restore <backup_file>
 ```
 
 - **Options**:
   - `<backup_file>`: Path to the JSON backup file.
+
+> The default backup location is `~/Documents/hsa-reimburse/backups`
 
 ---
 
@@ -151,7 +158,7 @@ hsa_reimburse restore <backup_file>
 Show a summary of total reimbursed and available amounts.
 
 ```bash
-hsa_reimburse summary
+hsa summary
 ```
 
 ---
@@ -160,7 +167,7 @@ hsa_reimburse summary
 Generate a detailed report of all reimbursements.
 
 ```bash
-hsa_reimburse report [--export <format>]
+hsa report [--export <format>]
 ```
 
 - **Options**:
@@ -168,11 +175,13 @@ hsa_reimburse report [--export <format>]
 
 ---
 
+> Exported report files are saved to: `~/Documents/hsa-reimburse/exports`
+
 ### `check-invalid`
 Check for receipt files that do not match the expected naming convention.
 
 ```bash
-hsa_reimburse check-invalid [--path <path>]
+hsa check-invalid [--path <path>]
 ```
 
 - **Options**:
@@ -194,7 +203,7 @@ YYYYMMDD_DollarAmount_OptionalNote.extension
 - **Supported Extensions**: Any. It doesn't matter. These are your file and this app only reads data from the file names.
 
 ### Example:
-- `20240101_150.00_Glasses.pdf`
+- `20240101_150.00_PrescriptionReceipt.pdf`
 - `20240215_200.50.png`
 
 ---
