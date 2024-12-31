@@ -1,3 +1,25 @@
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "hsa_reimburse_package_radian21"
+version = "0.1.0"
+authors = [
+  { name="Andy Fritsch", email="radian21@gmail.com" },
+]
+maintainers = [
+  { name="Andy Fritsch", email="radian21@gmail.com" },
+]
+description = "HSA Reimbursement CLI is a command-line tool designed to help users manage healthcare receipts of Health Savings Account."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/radian21/hsa_reimburse"
+Issues = "https://github.com/radian21/hsa_reimburse/issues"
