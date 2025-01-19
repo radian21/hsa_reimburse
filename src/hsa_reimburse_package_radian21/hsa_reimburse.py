@@ -32,11 +32,12 @@ def initialize_database():
     conn = connect_db()
     cursor = conn.cursor()
 
-    # Create receipts table
+    # Create receipts table with added path column
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS receipts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             filename TEXT UNIQUE,
+            path TEXT,
             date TEXT,
             amount REAL,
             note TEXT,
@@ -60,9 +61,9 @@ def initialize_database():
 
 
 def scan_receipts(path=None):
+    """Scan the folder for new receipts and add them to the database."""
     path = path or RECEIPTS_DIR  # Use default path if none is provided
 
-    """Scan the folder for new receipts and add them to the database."""
     if not os.path.exists(path):
         print(f"Directory not found: {path}")
         return
@@ -72,41 +73,77 @@ def scan_receipts(path=None):
     conn = connect_db()
     cursor = conn.cursor()
 
+    # Track changes for logging
+    new_count, updated_count, unchanged_count = 0, 0, 0
+
+    scanned_files = set()
+
     for file in os.listdir(path):
-        if os.path.isfile(os.path.join(path, file)):
+        file_path = os.path.join(path, file)
+        if os.path.isfile(file_path):
             try:
                 # Parse metadata from filename
                 file_base, file_ext = os.path.splitext(file)
-                if file_ext.lower() not in [".pdf", ".png"]:  # Skip unsupported files
+                if file_ext.lower() not in [".pdf", ".png", ".jpg"]:  # Skip unsupported files
                     continue
-                
+
                 # Split into parts by delimiters `_` or `.`
                 parts = file_base.split("_") if "_" in file_base else file_base.split(".")
-                
-                # Parse date and amount
                 date = parts[0]
                 amount = float(parts[1])
-                
-                # Parse note if available
                 note = "_".join(parts[2:]) if len(parts) > 2 else "No note"
-                
-                # Full file path and hash
-                file_path = os.path.join(path, file)
+
+                # Compute file hash to detect changes
                 file_hash = sha256(open(file_path, 'rb').read()).hexdigest()
 
-                # Insert into the database
-                cursor.execute("""
-                    INSERT OR IGNORE INTO receipts (filename, date, amount, note, file_hash)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (file, date, amount, note, file_hash))
+                # Check if the file already exists in the database
+                cursor.execute("SELECT file_hash FROM receipts WHERE filename = ?", (file,))
+                existing_record = cursor.fetchone()
+
+                if existing_record:
+                    if existing_record[0] != file_hash:
+                        # Update the record if the content has changed
+                        cursor.execute("""
+                            UPDATE receipts SET path=?, date=?, amount=?, note=?, file_hash=?
+                            WHERE filename=?
+                        """, (path, date, amount, note, file_hash, file))
+                        updated_count += 1
+                    else:
+                        unchanged_count += 1
+                else:
+                    # Insert new record
+                    cursor.execute("""
+                        INSERT INTO receipts (filename, path, date, amount, note, file_hash)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (file, path, date, amount, note, file_hash))
+                    new_count += 1
+
+                # Track the processed file
+                scanned_files.add(file)
 
             except Exception as e:
                 print(f"Error processing file {file}: {e}")
 
+    # Find orphaned records (files not in new scan)
+    cursor.execute("SELECT filename FROM receipts")
+    stored_files = {row[0] for row in cursor.fetchall()}
+    orphaned_files = stored_files - scanned_files
+
+    if orphaned_files:
+        print("Warning: Some files are no longer present in the directory:")
+        for orphan in orphaned_files:
+            print(f"  - {orphan}")
+
     conn.commit()
     conn.close()
-    print("Receipts scanned and database updated.")
 
+    # Summary report
+    print("Receipts scanned and database updated.")
+    print(f"New receipts added: {new_count}")
+    print(f"Receipts updated: {updated_count}")
+    print(f"Receipts unchanged: {unchanged_count}")
+    if orphaned_files:
+        print(f"Receipts missing from the scanned directory: {len(orphaned_files)}")
 
 
 def check_invalid_files(path=None):
