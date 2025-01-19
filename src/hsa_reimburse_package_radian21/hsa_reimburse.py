@@ -10,8 +10,10 @@ from datetime import datetime
 import csv
 from . import __version__
 
-# Global variables
-DB_FILE = "hsa_reimburse.db"
+CONFIG_FILE = "hsa_config.json"
+
+# Default parameter values
+DB_FILE = os.path.expanduser("~/Documents/hsa-reimburse/hsa_reimburse.db")
 BACKUP_DIR = os.path.expanduser("~/Documents/hsa-reimburse/backups")
 EXPORT_DIR = os.path.expanduser("~/Documents/hsa-reimburse/exports")
 RECEIPTS_DIR = os.path.expanduser("~/Documents/hsa-reimburse/receipts")
@@ -60,12 +62,70 @@ def initialize_database():
     conn.close()
 
 
+
+def update_config(key, value):
+    """Update the configuration file with the given key-value pair."""
+    config = load_config()
+    config[key] = os.path.abspath(value)
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f, indent=4)
+
+
+
+
+def load_config():
+    """Load the configuration file if it exists, otherwise return defaults."""
+    default_config = {
+        "database_path": os.path.abspath(DB_FILE),
+        "receipts_dir": os.path.abspath(RECEIPTS_DIR),
+        "backup_dir": os.path.abspath(BACKUP_DIR),
+        "export_dir": os.path.abspath(EXPORT_DIR),
+    }
+
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            stored_config = json.load(f)
+            default_config.update(stored_config)
+
+    return default_config
+
+
+
+def print_config():
+    """Print the current application configuration."""
+    config = load_config()
+
+    config_data = {
+        "Database Path": config["database_path"],
+        "Receipts Directory": config["receipts_dir"],
+        "Backup Directory": config["backup_dir"],
+        "Export Directory": config["export_dir"]
+    }
+
+    print("\nCurrent Application Configuration:")
+    print("=" * 40)
+    for key, value in config_data.items():
+        print(f"{key}: {value}")
+    print("=" * 40)
+
+
+    
+
 def scan_receipts(path=None):
     """Scan the folder for new receipts and add them to the database."""
-    path = path or RECEIPTS_DIR  # Use default path if none is provided
+    config = load_config()
+
+    if path:
+        path = os.path.abspath(os.path.normpath(path))  # Convert UNC path to absolute path
+        update_config("receipts_dir", path)
+    else:
+        path = config["receipts_dir"]
+
+    # Debugging: Check the path being used
+    print(f"Using receipts directory: {path}")
 
     if not os.path.exists(path):
-        print(f"Directory not found: {path}")
+        print(f"Error: Directory not found: {path}")
         return
 
     initialize_database()
@@ -78,16 +138,21 @@ def scan_receipts(path=None):
 
     scanned_files = set()
 
-    for file in os.listdir(path):
-        file_path = os.path.join(path, file)
-        if os.path.isfile(file_path):
-            try:
+    try:
+        files = os.listdir(path)
+        if not files:
+            print(f"Warning: No files found in directory {path}")
+        
+        for file in files:
+            file_path = os.path.join(path, file)
+            if os.path.isfile(file_path):
+                print(f"Processing: {file_path}")  # Debugging output
+
                 # Parse metadata from filename
                 file_base, file_ext = os.path.splitext(file)
                 if file_ext.lower() not in [".pdf", ".png", ".jpg"]:  # Skip unsupported files
                     continue
 
-                # Split into parts by delimiters `_` or `.`
                 parts = file_base.split("_") if "_" in file_base else file_base.split(".")
                 date = parts[0]
                 amount = float(parts[1])
@@ -97,34 +162,33 @@ def scan_receipts(path=None):
                 file_hash = sha256(open(file_path, 'rb').read()).hexdigest()
 
                 # Check if the file already exists in the database
-                cursor.execute("SELECT file_hash FROM receipts WHERE filename = ?", (file,))
+                cursor.execute("SELECT filename, file_hash FROM receipts WHERE file_hash = ?", (file_hash,))
                 existing_record = cursor.fetchone()
 
                 if existing_record:
-                    if existing_record[0] != file_hash:
-                        # Update the record if the content has changed
+                    existing_filename = existing_record[0]
+                    if existing_filename != file:
+                        # Update the record if the filename has changed
                         cursor.execute("""
-                            UPDATE receipts SET path=?, date=?, amount=?, note=?, file_hash=?
-                            WHERE filename=?
-                        """, (path, date, amount, note, file_hash, file))
+                            UPDATE receipts SET filename=?, path=?, date=?, amount=?, note=?
+                            WHERE file_hash=?
+                        """, (file, path, date, amount, note, file_hash))
                         updated_count += 1
                     else:
                         unchanged_count += 1
                 else:
-                    # Insert new record
                     cursor.execute("""
                         INSERT INTO receipts (filename, path, date, amount, note, file_hash)
                         VALUES (?, ?, ?, ?, ?, ?)
                     """, (file, path, date, amount, note, file_hash))
                     new_count += 1
 
-                # Track the processed file
                 scanned_files.add(file)
 
-            except Exception as e:
-                print(f"Error processing file {file}: {e}")
+    except Exception as e:
+        print(f"Error accessing directory: {e}")
 
-    # Find orphaned records (files not in new scan)
+    # Find orphaned records (files no longer in the scanned directory)
     cursor.execute("SELECT filename FROM receipts")
     stored_files = {row[0] for row in cursor.fetchall()}
     orphaned_files = stored_files - scanned_files
@@ -144,6 +208,10 @@ def scan_receipts(path=None):
     print(f"Receipts unchanged: {unchanged_count}")
     if orphaned_files:
         print(f"Receipts missing from the scanned directory: {len(orphaned_files)}")
+
+
+
+
 
 
 def check_invalid_files(path=None):
@@ -261,12 +329,17 @@ def reset_reimbursements():
     print("Reimbursement records have been reset.")
 
 
-def backup_reimbursements():
+
+def backup_reimbursements(backup_path=None):
     """Backup reimbursement data to a JSON file."""
-    os.makedirs(BACKUP_DIR, exist_ok=True)
+    config = load_config()
+    backup_dir = backup_path or config["backup_dir"]
+    update_config("backup_dir", backup_dir)
+
+    os.makedirs(backup_dir, exist_ok=True)
     
     backup_file = os.path.join(
-        BACKUP_DIR, f"backup_reimbursements_{datetime.now().isoformat().replace(':', '-')}.json"
+        backup_dir, f"backup_reimbursements_{datetime.now().isoformat().replace(':', '-')}.json"
     )
 
     conn = connect_db()
@@ -284,7 +357,6 @@ def backup_reimbursements():
         print(f"Backup created: {backup_file}")
     else:
         print("No reimbursements to back up.")
-
 
 
 
@@ -398,12 +470,17 @@ def generate_report(export_format=None):
             export_to_json(export_data)
 
 
-def export_to_csv(data):
+
+def export_to_csv(data, export_path=None):
     """Export reimbursement data to a CSV file."""
-    os.makedirs(EXPORT_DIR, exist_ok=True)  # Ensure the export directory exists
+    config = load_config()
+    export_dir = export_path or config["export_dir"]
+    update_config("export_dir", export_dir)
+
+    os.makedirs(export_dir, exist_ok=True)
 
     export_file = os.path.join(
-        EXPORT_DIR, f"reimbursements_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        export_dir, f"reimbursements_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     )
 
     with open(export_file, "w", newline="", encoding="utf-8") as f:
@@ -411,16 +488,21 @@ def export_to_csv(data):
         writer.writerow(["Date", "Amount", "Files"])
         for record in data:
             writer.writerow([record["date"], record["amount"], "; ".join(record["files"])])
-
+    
     print(f"Report exported to CSV: {export_file}")
 
 
-def export_to_json(data):
+
+def export_to_json(data, export_path=None):
     """Export reimbursement data to a JSON file."""
-    os.makedirs(EXPORT_DIR, exist_ok=True)  # Ensure the export directory exists
+    config = load_config()
+    export_dir = export_path or config["export_dir"]
+    update_config("export_dir", export_dir)
+
+    os.makedirs(export_dir, exist_ok=True)
 
     export_file = os.path.join(
-        EXPORT_DIR, f"reimbursements_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        export_dir, f"reimbursements_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     )
 
     with open(export_file, "w", encoding="utf-8") as f:
@@ -440,10 +522,16 @@ def main():
     subparsers.add_parser("reset", help="Reset reimbursements with backup")
     subparsers.add_parser("restore", help="Restore reimbursements from backup").add_argument("backup_file")
     subparsers.add_parser("summary", help="Show summary of reimbursements")
+    subparsers.add_parser("config", help="Display current application configuration")
+    subparsers.add_parser("backup", help="Backup reimbursements").add_argument("--path", help="Path to store backups")
+    subparsers.add_parser("export", help="Export reports").add_argument("--path", help="Path to export reports")
+
     report_parser = subparsers.add_parser("report", help="Generate a report of all reimbursements")
     report_parser.add_argument("--export", choices=["csv", "json"], help="Export the report to CSV or JSON")
+
     invalid_files_parser = subparsers.add_parser("check-invalid", help="Check for files with invalid naming convention")
     invalid_files_parser.add_argument("--path", help="Path to the directory to check. Defaults to RECEIPTS_DIR.")
+
 
     args = parser.parse_args()
 
@@ -461,7 +549,8 @@ def main():
         generate_report(export_format=args.export)
     elif args.command == "check-invalid":
         check_invalid_files(args.path)
-
+    elif args.command == "config":
+        print_config()
 
 if __name__ == "__main__":
     main()
