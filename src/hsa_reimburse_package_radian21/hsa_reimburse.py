@@ -523,8 +523,8 @@ def main():
     subparsers.add_parser("restore", help="Restore reimbursements from backup").add_argument("backup_file")
     subparsers.add_parser("summary", help="Show summary of reimbursements")
     subparsers.add_parser("config", help="Display current application configuration")
-    subparsers.add_parser("backup", help="Backup reimbursements").add_argument("--path", help="Path to store backups")
-    subparsers.add_parser("export", help="Export reports").add_argument("--path", help="Path to export reports")
+    #subparsers.add_parser("backup", help="Backup reimbursements").add_argument("--path", help="Path to store backups")
+    #subparsers.add_parser("export", help="Export reports").add_argument("--path", help="Path to export reports")
 
     report_parser = subparsers.add_parser("report", help="Generate a report of all reimbursements")
     report_parser.add_argument("--export", choices=["csv", "json"], help="Export the report to CSV or JSON")
