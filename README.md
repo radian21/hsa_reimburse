@@ -84,13 +84,13 @@ Run the `hsa` command with a subcommand:
 hsa <command> [options]
 ```
 
-### Example:
+### Examples:
 - Scan receipts in a directory:
   ```bash
-  hsa init ~/path/to/receipts
+  hsa init --path "C:\Receipts"
   ```
 
-  >The default path to the receipts will be used if no path is provided. The default path is: `~/Documents/hsa-reimburse/receipts`
+  >The default path to the receipts will be used if no path is provided. Run `hsa config` to see file paths.
 
 - Request a reimbursement:
   ```bash
@@ -100,6 +100,22 @@ hsa <command> [options]
 - Generate a summary:
   ```bash
   hsa summary
+  ```
+
+- Generate a report for tracability:
+  ```bash
+  hsa report
+  ```
+
+  Export a report to `json`:
+  ```
+  hsa report --export json
+  ```
+
+  Export a report to `csv`:
+
+  ```
+  hsa report --export csv
   ```
 
 ---
@@ -135,7 +151,7 @@ hsa request <amount>
 ---
 
 ### `reset`
-Reset all reimbursement transactions after creating a backup.
+Reset all reimbursement transactions after creating a backup. This does NOT rescan the receipts source directory. Run `hsa init` to rescan receipt files.
 
 ```bash
 hsa reset
@@ -165,6 +181,15 @@ Show a summary of total reimbursed and available amounts.
 
 ```bash
 hsa summary
+```
+
+---
+
+### `config`
+Display current application configuration. The `hsa_config.json` file is stored in the program directory.
+
+```bash
+hsa config
 ```
 
 ---
@@ -206,11 +231,16 @@ YYYYMMDD_DollarAmount_OptionalNote.extension
 - **YYYYMMDD**: Date of the receipt.
 - **DollarAmount**: Reimbursable amount in decimal format.
 - **OptionalNote**: Additional details (optional).
-- **Supported Extensions**: Any. It doesn't matter. These are your file and this app only reads data from the file names.
+- **Supported Extensions**:
+  - .pdf
+  - .jpg
+  - .png
+  - All other ignored
 
-### Example:
+### Valid Examples:
 - `20240101_150.00_PrescriptionReceipt.pdf`
 - `20240215_200.50.png`
+- `20240305_1056_CVS.jpg`
 
 ---
 
@@ -302,7 +332,7 @@ hsa --version
 Expected output:
 
 ```
-hsa 0.1.0
+hsa 0.2.0
 ```
 ---
 
