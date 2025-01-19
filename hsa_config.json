@@ -1,0 +1,6 @@
+{
+    "database_path": "C:\\Users\\radia\\Documents\\hsa-reimburse\\hsa_reimburse.db",
+    "receipts_dir": "E:\\SynologyDrive\\Documents\\Records\\Medical\\HSA\\Receipt repository\\receipts",
+    "backup_dir": "C:\\Users\\radia\\Documents\\hsa-reimburse\\backups",
+    "export_dir": "C:\\Users\\radia\\Documents\\hsa-reimburse\\exports"
+}
